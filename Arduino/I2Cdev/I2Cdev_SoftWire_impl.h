@@ -3,21 +3,7 @@
 // 2013-06-05 by Jeff Rowberg <jeff@rowberg.net>
 //
 // Changelog:
-//      2013-05-06 - add Francesco Ferrara's Fastwire v0.24 implementation with small modifications
-//      2013-05-05 - fix issue with writing bit values to words (Sasquatch/Farzanegan)
-//      2012-06-09 - fix major issue with reading > 32 bytes at a time with Arduino Wire
-//                 - add compiler warnings when using outdated or IDE or limited I2Cdev implementation
-//      2011-11-01 - fix write*Bits mask calculation (thanks sasquatch @ Arduino forums)
-//      2011-10-03 - added automatic Arduino version detection for ease of use
-//      2011-10-02 - added Gene Knight's NBWire TwoWire class implementation with small modifications
-//      2011-08-31 - added support for Arduino 1.0 Wire library (methods are different from 0.x)
-//      2011-08-03 - added optional _timeout parameter to read* methods to easily change from default
-//      2011-08-02 - added support for 16-bit registers
-//                 - fixed incorrect Doxygen comments on some methods
-//                 - added _timeout value for read operations (thanks mem @ Arduino forums)
-//      2011-07-30 - changed read/write function structures to return success or byte counts
-//                 - made all methods static for multi-device memory savings
-//      2011-07-28 - initial release
+//      2017-04-xx - initial release
 
 /* ============================================
 I2Cdev device library code is placed under the MIT license
@@ -45,10 +31,7 @@ THE SOFTWARE.
 
 
 #include "I2Cdev.h"
-#include <Wire.h> // for BUFFER_LENGTH
-#if defined(ARDUINO_ARCH_STM32F1)
-#include <HardWire.h>
-#endif
+#include <SoftWire.h>
 
 /** Read multiple bytes from an 8-bit device register.
  * @param devAddr I2C slave device address
@@ -59,7 +42,7 @@ THE SOFTWARE.
  * @return Number of bytes read (-1 indicates failure)
  */
 template<>
-int8_t I2CdevT<TwoWire, uint8_t>::readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data) {
+int8_t I2CdevT<SoftWire, uint8_t>::readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data) {
 
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
@@ -118,7 +101,7 @@ int8_t I2CdevT<TwoWire, uint8_t>::readBytes(uint8_t devAddr, uint8_t regAddr, ui
  * @return Number of bytes read (-1 indicates failure)
  */
 template<>
-int8_t I2CdevT<TwoWire, uint16_t>::readBytes(uint8_t devAddr, uint16_t regAddr, uint8_t length, uint8_t *data) {
+int8_t I2CdevT<SoftWire, uint16_t>::readBytes(uint8_t devAddr, uint16_t regAddr, uint8_t length, uint8_t *data) {
 
 #ifdef I2CDEV_SERIAL_DEBUG
     I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
@@ -178,7 +161,7 @@ return count;
  * @return Number of words read (-1 indicates failure)
  */
 template<>
-int8_t I2CdevT<TwoWire, uint8_t>::readWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t *data) {
+int8_t I2CdevT<SoftWire, uint8_t>::readWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t *data) {
 
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
@@ -208,7 +191,7 @@ int8_t I2CdevT<TwoWire, uint8_t>::readWords(uint8_t devAddr, uint8_t regAddr, ui
         _wire.requestFrom(devAddr, (uint8_t)(length * 2)); // length=words, this wants bytes
 
         bool msb = true; // starts with MSB, then LSB
-        for (; _wire.available() && count < length && (I2CdevT<TwoWire, uint8_t>::_timeout == 0 || millis() - t1 < I2CdevT<TwoWire, uint8_t>::_timeout);) {
+        for (; _wire.available() && count < length && (I2CdevT<SoftWire, uint8_t>::_timeout == 0 || millis() - t1 < I2CdevT<SoftWire, uint8_t>::_timeout);) {
             if (msb) {
                 // first byte is bits 15-8 (MSb=15)
                 data[count] = _wire.read() << 8;
@@ -227,7 +210,7 @@ int8_t I2CdevT<TwoWire, uint8_t>::readWords(uint8_t devAddr, uint8_t regAddr, ui
         _wire.endTransmission();
     }
 
-    if (I2CdevT<TwoWire, uint8_t>::_timeout > 0 && millis() - t1 >= I2CdevT<TwoWire, uint8_t>::_timeout && count < length) count = -1; // _timeout
+    if (I2CdevT<SoftWire, uint8_t>::_timeout > 0 && millis() - t1 >= I2CdevT<SoftWire, uint8_t>::_timeout && count < length) count = -1; // _timeout
 
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print(". Done (");
@@ -246,7 +229,7 @@ int8_t I2CdevT<TwoWire, uint8_t>::readWords(uint8_t devAddr, uint8_t regAddr, ui
  * @return Status of operation (true = success)
  */
 template<>
-bool I2CdevT<TwoWire, uint8_t>::writeBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t* data) {
+bool I2CdevT<SoftWire, uint8_t>::writeBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t* data) {
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
         I2CDEV_DEBUG_OUTPUT.print(devAddr, HEX);
@@ -281,7 +264,7 @@ bool I2CdevT<TwoWire, uint8_t>::writeBytes(uint8_t devAddr, uint8_t regAddr, uin
  * @return Status of operation (true = success)
  */
 template<>
-bool I2CdevT<TwoWire, uint16_t>::writeBytes(uint8_t devAddr, uint16_t regAddr, uint8_t length, uint8_t* data) {
+bool I2CdevT<SoftWire, uint16_t>::writeBytes(uint8_t devAddr, uint16_t regAddr, uint8_t length, uint8_t* data) {
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
         I2CDEV_DEBUG_OUTPUT.print(devAddr, HEX);
@@ -317,7 +300,7 @@ bool I2CdevT<TwoWire, uint16_t>::writeBytes(uint8_t devAddr, uint16_t regAddr, u
  * @return Status of operation (true = success)
  */
 template<>
-bool I2CdevT<TwoWire, uint8_t>::writeWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t* data) {
+bool I2CdevT<SoftWire, uint8_t>::writeWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t* data) {
     #ifdef I2CDEV_SERIAL_DEBUG
         I2CDEV_DEBUG_OUTPUT.print("I2C (0x");
         I2CDEV_DEBUG_OUTPUT.print(devAddr, HEX);

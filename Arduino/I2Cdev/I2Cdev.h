@@ -47,26 +47,9 @@ THE SOFTWARE.
 #ifndef _I2CDEV_H_
 #define _I2CDEV_H_
 
-// -----------------------------------------------------------------------------
-// I2C interface implementation setting
-// -----------------------------------------------------------------------------
-#ifndef I2CDEV_IMPLEMENTATION
-#define I2CDEV_IMPLEMENTATION       I2CDEV_ARDUINO_WIRE
-//#define I2CDEV_IMPLEMENTATION       I2CDEV_BUILTIN_FASTWIRE
-#endif // I2CDEV_IMPLEMENTATION
-
-// comment this out if you are using a non-optimal IDE/implementation setting
-// but want the compiler to shut up about it
-#define I2CDEV_IMPLEMENTATION_WARNINGS
-
-// -----------------------------------------------------------------------------
-// I2C interface implementation options
-// -----------------------------------------------------------------------------
-#define I2CDEV_ARDUINO_WIRE         1 // Wire object from Arduino
-#define I2CDEV_BUILTIN_NBWIRE       2 // Tweaked Wire object from Gene Knight's NBWire project
-                                      // ^^^ NBWire implementation is still buggy w/some interrupts!
-#define I2CDEV_BUILTIN_FASTWIRE     3 // FastWire object from Francesco Ferrara's project
-#define I2CDEV_I2CMASTER_LIBRARY    4 // I2C object from DSSCircuits I2C-Master Library at https://github.com/DSSCircuits/I2C-Master-Library
+#ifndef I2CDEV_DEBUG_OUTPUT
+#define I2CDEV_DEBUG_OUTPUT Serial
+#endif
 
 // -----------------------------------------------------------------------------
 // Arduino-style "Serial.print" debug constant (uncomment to enable)
@@ -74,205 +57,286 @@ THE SOFTWARE.
 //#define I2CDEV_SERIAL_DEBUG
 
 #ifdef ARDUINO
-    #if ARDUINO < 100
-        #include "WProgram.h"
-    #else
-        #include "Arduino.h"
-    #endif
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-        #include <Wire.h>
-    #endif
-    #if I2CDEV_IMPLEMENTATION == I2CDEV_I2CMASTER_LIBRARY
-        #include <I2C.h>
-    #endif
+#if ARDUINO < 100
+#include "WProgram.h"
+#else
+#include "Arduino.h"
+#endif
 #endif
 
-#ifdef SPARK
-    #include <spark_wiring_i2c.h>
-    #define ARDUINO 101
-#endif
+#include <Wire.h>
 
-
-// 1000ms default read timeout (modify with "I2Cdev::readTimeout = [ms];")
+// 1000ms default read _timeout (modify with "I2Cdev::_timeout = [ms];")
+#ifndef I2CDEV_DEFAULT_READ_TIMEOUT
 #define I2CDEV_DEFAULT_READ_TIMEOUT     1000
+#endif
 
-class I2Cdev {
-    public:
-        I2Cdev();
+template<typename WIRE, typename RegAddr>
+class I2CdevT {
+public:
+  I2CdevT(WIRE& wire, uint16_t readTimeout = I2CDEV_DEFAULT_READ_TIMEOUT) :
+      _wire(wire), _timeout(readTimeout) {
+  }
+  I2CdevT() = delete;
+  I2CdevT(const I2CdevT<WIRE, RegAddr>& other) = delete; // non construction-copyable
+  I2CdevT& operator=(const I2CdevT<WIRE, RegAddr>&) = delete; // non copyable
 
-        static int8_t readBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readBitW(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint16_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readBitsW(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint16_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readByte(uint8_t devAddr, uint8_t regAddr, uint8_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readWord(uint8_t devAddr, uint8_t regAddr, uint16_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data, uint16_t timeout=I2Cdev::readTimeout);
-        static int8_t readWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t *data, uint16_t timeout=I2Cdev::readTimeout);
+  void begin();
 
-        static bool writeBit(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint8_t data);
-        static bool writeBitW(uint8_t devAddr, uint8_t regAddr, uint8_t bitNum, uint16_t data);
-        static bool writeBits(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
-        static bool writeBitsW(uint8_t devAddr, uint8_t regAddr, uint8_t bitStart, uint8_t length, uint16_t data);
-        static bool writeByte(uint8_t devAddr, uint8_t regAddr, uint8_t data);
-        static bool writeWord(uint8_t devAddr, uint8_t regAddr, uint16_t data);
-        static bool writeBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data);
-        static bool writeWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16_t *data);
+  int8_t readBit(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint8_t *data);
+  int8_t readBitW(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint16_t *data);
+  int8_t readBits(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint8_t *data);
+  int8_t readBitsW(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint16_t *data);
+  int8_t readByte(uint8_t devAddr, RegAddr regAddr, uint8_t *data);
+  int8_t readWord(uint8_t devAddr, RegAddr regAddr, uint16_t *data);
+  int8_t readBytes(uint8_t devAddr, RegAddr regAddr, uint8_t length, uint8_t *data);
+  int8_t readWords(uint8_t devAddr, RegAddr regAddr, uint8_t length, uint16_t *data);
 
-        static uint16_t readTimeout;
+  bool writeBit(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint8_t data);
+  bool writeBitW(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint16_t data);
+  bool writeBits(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint8_t data);
+  bool writeBitsW(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint16_t data);
+  bool writeByte(uint8_t devAddr, RegAddr regAddr, uint8_t data);
+  bool writeWord(uint8_t devAddr, RegAddr regAddr, uint16_t data);
+  bool writeBytes(uint8_t devAddr, RegAddr regAddr, uint8_t length, uint8_t *data);
+  bool writeWords(uint8_t devAddr, RegAddr regAddr, uint8_t length, uint16_t *data);
+
+protected:
+  WIRE& _wire;
+  uint16_t _timeout;
 };
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-    //////////////////////
-    // FastWire 0.24
-    // This is a library to help faster programs to read I2C devices.
-    // Copyright(C) 2012
-    // Francesco Ferrara
-    //////////////////////
+template<typename WIRE, typename RegAddr>
+void I2CdevT<WIRE, RegAddr>::begin() {
+  _wire.begin();
+}
 
-    /* Master */
-    #define TW_START                0x08
-    #define TW_REP_START            0x10
+/** Read a single bit from an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param bitNum Bit position to read (0-7)
+ * @param data Container for single bit value
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readBit(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint8_t *data) {
+  uint8_t b;
+  uint8_t count = readByte(devAddr, regAddr, &b);
+  *data = b & (1 << bitNum);
+  return count;
+}
 
-    /* Master Transmitter */
-    #define TW_MT_SLA_ACK           0x18
-    #define TW_MT_SLA_NACK          0x20
-    #define TW_MT_DATA_ACK          0x28
-    #define TW_MT_DATA_NACK         0x30
-    #define TW_MT_ARB_LOST          0x38
+/** Read multiple bits from an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param bitStart First bit position to read (0-7)
+ * @param length Number of bits to read (not more than 8)
+ * @param data Container for right-aligned value (i.e. '101' read from any bitStart position will equal 0x05)
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readBits(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint8_t *data) {
+  // 01101001 read byte
+  // 76543210 bit numbers
+  //    xxx   args: bitStart=4, length=3
+  //    010   masked
+  //   -> 010 shifted
+  uint8_t count, b;
+  if ((count = readByte(devAddr, regAddr, &b)) != 0) {
+    uint8_t mask = ((1 << length) - 1) << (bitStart - length + 1);
+    b &= mask;
+    b >>= (bitStart - length + 1);
+    *data = b;
+  }
+  return count;
+}
 
-    /* Master Receiver */
-    #define TW_MR_ARB_LOST          0x38
-    #define TW_MR_SLA_ACK           0x40
-    #define TW_MR_SLA_NACK          0x48
-    #define TW_MR_DATA_ACK          0x50
-    #define TW_MR_DATA_NACK         0x58
+/** Read single byte from an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param data Container for byte value read from device
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readByte(uint8_t devAddr, RegAddr regAddr, uint8_t *data) {
+  return readBytes(devAddr, regAddr, 1, data);
+}
 
-    #define TW_OK                   0
-    #define TW_ERROR                1
+/** Read single word from a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param data Container for word value read from device
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (true = success)
+ */
+//template<>
+//int8_t I2CdevT<TwoWire, uint8_t>::readWord(uint8_t devAddr, uint8_t regAddr, uint16_t *data) {
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readWord(uint8_t devAddr, RegAddr regAddr, uint16_t *data) {
+  return readWords(devAddr, regAddr, 1, data);
+}
 
-    class Fastwire {
-        private:
-            static boolean waitInt();
+/** Read a single bit from a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param bitNum Bit position to read (0-15)
+ * @param data Container for single bit value
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readBitW(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint16_t *data) {
+  uint16_t b;
+  uint8_t count = readWord(devAddr, regAddr, &b);
+  *data = b & (1 << bitNum);
+  return count;
+}
 
-        public:
-            static void setup(int khz, boolean pullup);
-            static byte beginTransmission(byte device);
-            static byte write(byte value);
-            static byte writeBuf(byte device, byte address, byte *data, byte num);
-            static byte readBuf(byte device, byte address, byte *data, byte num);
-            static void reset();
-            static byte stop();
-    };
-#endif
+/** Read multiple bits from a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to read from
+ * @param bitStart First bit position to read (0-15)
+ * @param length Number of bits to read (not more than 16)
+ * @param data Container for right-aligned value (i.e. '101' read from any bitStart position will equal 0x05)
+ * @param _timeout Optional read _timeout in milliseconds (0 to disable, leave off to use default class value in I2Cdev::readTimeout)
+ * @return Status of read operation (1 = success, 0 = failure, -1 = _timeout)
+ */
+template<typename WIRE, typename RegAddr>
+int8_t I2CdevT<WIRE, RegAddr>::readBitsW(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint16_t *data) {
+  // 1101011001101001 read byte
+  // fedcba9876543210 bit numbers
+  //    xxx           args: bitStart=12, length=3
+  //    010           masked
+  //           -> 010 shifted
+  uint8_t count;
+  uint16_t w;
+  if ((count = readWord(devAddr, regAddr, &w)) != 0) {
+    uint16_t mask = ((1 << length) - 1) << (bitStart - length + 1);
+    w &= mask;
+    w >>= (bitStart - length + 1);
+    *data = w;
+  }
+  return count;
+}
 
-#if I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_NBWIRE
-    // NBWire implementation based heavily on code by Gene Knight <Gene@Telobot.com>
-    // Originally posted on the Arduino forum at http://arduino.cc/forum/index.php/topic,70705.0.html
-    // Originally offered to the i2cdevlib project at http://arduino.cc/forum/index.php/topic,68210.30.html
+/** write a single bit in an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to write to
+ * @param bitNum Bit position to write (0-7)
+ * @param value New bit value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeBit(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint8_t data) {
+  uint8_t b;
+  readByte(devAddr, regAddr, &b);
+  b = (data != 0) ? (b | (1 << bitNum)) : (b & ~(1 << bitNum));
+  return writeByte(devAddr, regAddr, b);
+}
 
-    #define NBWIRE_BUFFER_LENGTH 32
+/** Write multiple bits in an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to write to
+ * @param bitStart First bit position to write (0-7)
+ * @param length Number of bits to write (not more than 8)
+ * @param data Right-aligned value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeBits(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint8_t data) {
+  //      010 value to write
+  // 76543210 bit numbers
+  //    xxx   args: bitStart=4, length=3
+  // 00011100 mask byte
+  // 10101111 original value (sample)
+  // 10100011 original & ~mask
+  // 10101011 masked | value
+  uint8_t b;
+  if (readByte(devAddr, regAddr, &b) != 0) {
+    uint8_t mask = ((1 << length) - 1) << (bitStart - length + 1);
+    data <<= (bitStart - length + 1); // shift data into correct position
+    data &= mask; // zero all non-important bits in data
+    b &= ~(mask); // zero all important bits in existing byte
+    b |= data; // combine data with existing byte
+    return writeByte(devAddr, regAddr, b);
+  } else {
+    return false;
+  }
+}
 
-    class TwoWire {
-        private:
-            static uint8_t rxBuffer[];
-            static uint8_t rxBufferIndex;
-            static uint8_t rxBufferLength;
+/** Write single byte to an 8-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register address to write to
+ * @param data New byte value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeByte(uint8_t devAddr, RegAddr regAddr, uint8_t data) {
+  return writeBytes(devAddr, regAddr, 1, &data);
+}
 
-            static uint8_t txAddress;
-            static uint8_t txBuffer[];
-            static uint8_t txBufferIndex;
-            static uint8_t txBufferLength;
+/** Write single word to a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register address to write to
+ * @param data New word value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeWord(uint8_t devAddr, RegAddr regAddr, uint16_t data) {
+  return writeWords(devAddr, regAddr, (uint8_t) 1, &data);
+}
 
-            // static uint8_t transmitting;
-            static void (*user_onRequest)(void);
-            static void (*user_onReceive)(int);
-            static void onRequestService(void);
-            static void onReceiveService(uint8_t*, int);
+/** write a single bit in a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to write to
+ * @param bitNum Bit position to write (0-15)
+ * @param value New bit value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeBitW(uint8_t devAddr, RegAddr regAddr, uint8_t bitNum, uint16_t data) {
+  uint16_t w;
+  readWord(devAddr, regAddr, &w);
+  w = (data != 0) ? (w | (1 << bitNum)) : (w & ~(1 << bitNum));
+  return writeWord(devAddr, regAddr, w);
+}
 
-        public:
-            TwoWire();
-            void begin();
-            void begin(uint8_t);
-            void begin(int);
-            void beginTransmission(uint8_t);
-            //void beginTransmission(int);
-            uint8_t endTransmission(uint16_t timeout=0);
-            void nbendTransmission(void (*function)(int)) ;
-            uint8_t requestFrom(uint8_t, int, uint16_t timeout=0);
-            //uint8_t requestFrom(int, int);
-            void nbrequestFrom(uint8_t, int, void (*function)(int));
-            void send(uint8_t);
-            void send(uint8_t*, uint8_t);
-            //void send(int);
-            void send(char*);
-            uint8_t available(void);
-            uint8_t receive(void);
-            void onReceive(void (*)(int));
-            void onRequest(void (*)(void));
-    };
+/** Write multiple bits in a 16-bit device register.
+ * @param devAddr I2C slave device address
+ * @param regAddr Register regAddr to write to
+ * @param bitStart First bit position to write (0-15)
+ * @param length Number of bits to write (not more than 16)
+ * @param data Right-aligned value to write
+ * @return Status of operation (true = success)
+ */
+template<typename WIRE, typename RegAddr>
+bool I2CdevT<WIRE, RegAddr>::writeBitsW(uint8_t devAddr, RegAddr regAddr, uint8_t bitStart, uint8_t length, uint16_t data) {
+  //              010 value to write
+  // fedcba9876543210 bit numbers
+  //    xxx           args: bitStart=12, length=3
+  // 0001110000000000 mask word
+  // 1010111110010110 original value (sample)
+  // 1010001110010110 original & ~mask
+  // 1010101110010110 masked | value
+  uint16_t w;
+  if (readWord(devAddr, regAddr, &w) != 0) {
+    uint16_t mask = ((1 << length) - 1) << (bitStart - length + 1);
+    data <<= (bitStart - length + 1); // shift data into correct position
+    data &= mask; // zero all non-important bits in data
+    w &= ~(mask); // zero all important bits in existing word
+    w |= data; // combine data with existing word
+    return writeWord(devAddr, regAddr, w);
+  } else {
+    return false;
+  }
+}
 
-    #define TWI_READY   0
-    #define TWI_MRX     1
-    #define TWI_MTX     2
-    #define TWI_SRX     3
-    #define TWI_STX     4
 
-    #define TW_WRITE    0
-    #define TW_READ     1
-
-    #define TW_MT_SLA_NACK      0x20
-    #define TW_MT_DATA_NACK     0x30
-
-    #define CPU_FREQ            16000000L
-    #define TWI_FREQ            100000L
-    #define TWI_BUFFER_LENGTH   32
-
-    /* TWI Status is in TWSR, in the top 5 bits: TWS7 - TWS3 */
-
-    #define TW_STATUS_MASK              (_BV(TWS7)|_BV(TWS6)|_BV(TWS5)|_BV(TWS4)|_BV(TWS3))
-    #define TW_STATUS                   (TWSR & TW_STATUS_MASK)
-    #define TW_START                    0x08
-    #define TW_REP_START                0x10
-    #define TW_MT_SLA_ACK               0x18
-    #define TW_MT_SLA_NACK              0x20
-    #define TW_MT_DATA_ACK              0x28
-    #define TW_MT_DATA_NACK             0x30
-    #define TW_MT_ARB_LOST              0x38
-    #define TW_MR_ARB_LOST              0x38
-    #define TW_MR_SLA_ACK               0x40
-    #define TW_MR_SLA_NACK              0x48
-    #define TW_MR_DATA_ACK              0x50
-    #define TW_MR_DATA_NACK             0x58
-    #define TW_ST_SLA_ACK               0xA8
-    #define TW_ST_ARB_LOST_SLA_ACK      0xB0
-    #define TW_ST_DATA_ACK              0xB8
-    #define TW_ST_DATA_NACK             0xC0
-    #define TW_ST_LAST_DATA             0xC8
-    #define TW_SR_SLA_ACK               0x60
-    #define TW_SR_ARB_LOST_SLA_ACK      0x68
-    #define TW_SR_GCALL_ACK             0x70
-    #define TW_SR_ARB_LOST_GCALL_ACK    0x78
-    #define TW_SR_DATA_ACK              0x80
-    #define TW_SR_DATA_NACK             0x88
-    #define TW_SR_GCALL_DATA_ACK        0x90
-    #define TW_SR_GCALL_DATA_NACK       0x98
-    #define TW_SR_STOP                  0xA0
-    #define TW_NO_INFO                  0xF8
-    #define TW_BUS_ERROR                0x00
-
-    //#define _MMIO_BYTE(mem_addr) (*(volatile uint8_t *)(mem_addr))
-    //#define _SFR_BYTE(sfr) _MMIO_BYTE(_SFR_ADDR(sfr))
-
-    #ifndef sbi // set bit
-        #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
-    #endif // sbi
-
-    #ifndef cbi // clear bit
-        #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
-    #endif // cbi
-
-    extern TwoWire Wire;
-
-#endif // I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_NBWIRE
+typedef I2CdevT<TwoWire, uint16_t> I2Cdev16;
+typedef I2CdevT<TwoWire, uint8_t> I2Cdev8;
+typedef I2CdevT<TwoWire, uint8_t> I2Cdev;
 
 #endif /* _I2CDEV_H_ */
