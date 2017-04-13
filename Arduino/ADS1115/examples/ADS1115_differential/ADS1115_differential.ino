@@ -29,23 +29,30 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ===============================================
 */
+#define SERIAL_OUTPUT Serial
+#define ADS1115_SERIAL_DEBUG
+#define I2CDEV_DEBUG_OUTPUT SERIAL_OUTPUT
+
 #include "ADS1115.h"
+#include <Wire.h>
 
-ADS1115 adc0(ADS1115_DEFAULT_ADDRESS); 
+I2Cdev i2cdev(Wire);
+ADS1115<TwoWire> adc0(i2cdev, ADS1115_DEFAULT_ADDRESS);
 
-void setup() {                
-    Wire.begin();  // join I2C bus
-    Serial.begin(19200); // initialize serial communication 
-    Serial.println("Initializing I2C devices..."); 
+void setup() {
+    SERIAL_OUTPUT.begin(115200); // initialize serial communication 
+    i2cdev.begin(); // join I2C bus                
+    SERIAL_OUTPUT.println(F("Initializing I2C devices...")); 
     adc0.initialize(); // initialize ADS1115 16 bit A/D chip
     
-    Serial.println("Testing device connections...");
-    Serial.println(adc0.testConnection() ? "ADS1115 connection successful" : "ADS1115 connection failed");
+    SERIAL_OUTPUT.println(F("Testing device connections..."));
+    SERIAL_OUTPUT.println(adc0.testConnection() ? F("ADS1115 connection successful") : F("ADS1115 connection failed"));
       
     // To get output from this method, you'll need to turn on the 
-    //#define ADS1115_SERIAL_DEBUG // in the ADS1115.h file
+    //#define ADS1115_SERIAL_DEBUG // in the ADS1115.h file or right before you include it
     adc0.showConfigRegister();
-    
+
+    SERIAL_OUTPUT.println(F("Don't leave the input pins floating\n."));
     // We're going to do continuous sampling
     adc0.setMode(ADS1115_MODE_CONTINUOUS);
 }
@@ -53,39 +60,29 @@ void setup() {
 void loop() {
 
     // Sensor is on P0/N1 (pins 4/5)
-    Serial.println("Sensor 1 ************************");
     // Set the gain (PGA) +/- 1.024v
     adc0.setGain(ADS1115_PGA_1P024);
 
-    // Get the number of counts of the accumulator
-    Serial.print("Counts for sensor 1 is:");
-    
+    // Get the number of counts of the accumulator   
     // The below method sets the mux and gets a reading.
     int sensorOneCounts=adc0.getConversionP0N1();  // counts up to 16-bits  
-    Serial.println(sensorOneCounts);
 
     // To turn the counts into a voltage, we can use
-    Serial.print("Voltage for sensor 1 is:");
-    Serial.println(sensorOneCounts*adc0.getMvPerCount());
-    
-    Serial.println();
-     
-     
+    SERIAL_OUTPUT.print(F("Sensor 1 (A0-A1):"));
+    SERIAL_OUTPUT.print(sensorOneCounts*adc0.getMvPerCount());
+    SERIAL_OUTPUT.println(F(" milli volt (max ± 1.024mV with current settings)"));
+          
     // 2nd sensor is on P2/N3 (pins 6/7)
-    Serial.println("Sensor 2 ************************");
     // Set the gain (PGA) +/- 0.256v
     adc0.setGain(ADS1115_PGA_0P256);
 
     // Manually set the MUX  // could have used the getConversionP* above
     adc0.setMultiplexer(ADS1115_MUX_P2_N3); 
-    Serial.print("Counts for sensor 2 is:");
-    Serial.println(adc0.getConversion());  
-
-    Serial.print("mVoltage sensor 2 is:");
-    Serial.println(adc0.getMilliVolts());  // Convenience method to calculate voltage
-
-    Serial.println();
     
-    delay(500);
+    SERIAL_OUTPUT.print(F("Sensor 2 (A2-A3):"));
+    SERIAL_OUTPUT.print(adc0.getMilliVolts());  // Convenience method to calculate voltage
+    SERIAL_OUTPUT.println(F(" milli volt (max ± 1.024mV with current settings)"));
+    SERIAL_OUTPUT.println();
+    
+    delay(800);
 }
-

@@ -30,20 +30,24 @@ THE SOFTWARE.
 ===============================================
 */
 
+#define SERIAL_OUTPUT Serial
+#define ADS1115_SERIAL_DEBUG
+#define I2CDEV_DEBUG_OUTPUT SERIAL_OUTPUT
+
 #include "ADS1115.h"
 
-ADS1115 adc0(ADS1115_DEFAULT_ADDRESS);
+I2Cdev i2cdev(Wire);
+ADS1115<TwoWire> adc0(i2cdev);
 
 // Wire ADS1115 ALERT/RDY pin to Arduino pin 2
 const int alertReadyPin = 2;
 
 void setup() {    
-    //I2Cdev::begin();  // join I2C bus
-    Wire.begin();
-    Serial.begin(115200); // initialize serial communication 
+    SERIAL_OUTPUT.begin(115200); // initialize serial communication 
+    i2cdev.begin(); // join I2C bus
     
-    Serial.println("Testing device connections...");
-    Serial.println(adc0.testConnection() ? "ADS1115 connection successful" : "ADS1115 connection failed");
+    SERIAL_OUTPUT.println(F("Testing device connections..."));
+    SERIAL_OUTPUT.println(adc0.testConnection() ? F("ADS1115 connection successful") : F("ADS1115 connection failed"));
     
     adc0.initialize(); // initialize ADS1115 16 bit A/D chip
 
@@ -62,12 +66,13 @@ void setup() {
     adc0.setConversionReadyPinMode();
 
     // To get output from this method, you'll need to turn on the 
-    //#define ADS1115_SERIAL_DEBUG // in the ADS1115.h file
-    #ifdef ADS1115_SERIAL_DEBUG
+    //#define ADS1115_SERIAL_DEBUG // in the ADS1115.h file or right before you include it
+#ifdef ADS1115_SERIAL_DEBUG
     adc0.showConfigRegister();
-    Serial.print("HighThreshold="); Serial.println(adc0.getHighThreshold(),BIN);
-    Serial.print("LowThreshold="); Serial.println(adc0.getLowThreshold(),BIN);
-    #endif
+    SERIAL_OUTPUT.print(F("HighThreshold=")); SERIAL_OUTPUT.println(adc0.getHighThreshold(),BIN);
+    SERIAL_OUTPUT.print(F("LowThreshold=")); SERIAL_OUTPUT.println(adc0.getLowThreshold(),BIN);
+    SERIAL_OUTPUT.println();
+#endif
 }
 
 /** Poll the assigned pin for conversion status 
@@ -75,7 +80,7 @@ void setup() {
 void pollAlertReadyPin() {
   for (uint32_t i = 0; i<100000; i++)
     if (!digitalRead(alertReadyPin)) return;
-   Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
+  SERIAL_OUTPUT.println(F("Failed to wait for AlertReadyPin, it's stuck high!"));
 }
 
 void loop() {
@@ -84,27 +89,23 @@ void loop() {
     adc0.setMultiplexer(ADS1115_MUX_P0_NG);
     adc0.triggerConversion();
     pollAlertReadyPin();
-    Serial.print("A0: "); Serial.print(adc0.getMilliVolts(false)); Serial.print("mV\t");
+    SERIAL_OUTPUT.print(F("A0: ")); SERIAL_OUTPUT.print(adc0.getMilliVolts(false)); SERIAL_OUTPUT.print(F("mV\t"));
     
     adc0.setMultiplexer(ADS1115_MUX_P1_NG);
     adc0.triggerConversion();
     pollAlertReadyPin();
-    Serial.print("A1: "); Serial.print(adc0.getMilliVolts(false)); Serial.print("mV\t");
+    SERIAL_OUTPUT.print(F("A1: ")); SERIAL_OUTPUT.print(adc0.getMilliVolts(false)); SERIAL_OUTPUT.print(F("mV\t"));
     
     adc0.setMultiplexer(ADS1115_MUX_P2_NG);
     adc0.triggerConversion();
     pollAlertReadyPin();
-    Serial.print("A2: "); Serial.print(adc0.getMilliVolts(false)); Serial.print("mV\t");
+    SERIAL_OUTPUT.print(F("A2: ")); SERIAL_OUTPUT.print(adc0.getMilliVolts(false)); SERIAL_OUTPUT.print(F("mV\t"));
     
     adc0.setMultiplexer(ADS1115_MUX_P3_NG);
     // Do conversion polling via I2C on this last reading: 
-    Serial.print("A3: "); Serial.print(adc0.getMilliVolts(true)); Serial.print("mV");
-    
-    Serial.println(digitalRead(alertReadyPin));
-    delay(500);
+    SERIAL_OUTPUT.print(F("A3: ")); SERIAL_OUTPUT.print(adc0.getMilliVolts(true)); SERIAL_OUTPUT.print(F("mV\t"));
+
+    SERIAL_OUTPUT.print(F("Alert Pin is ")); 
+    SERIAL_OUTPUT.println(digitalRead(alertReadyPin)?F("High"):F("Low"));
+    delay(100);
 }
-  
-
-  
-
-

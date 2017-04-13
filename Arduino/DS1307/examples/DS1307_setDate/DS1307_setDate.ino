@@ -53,12 +53,12 @@ bool blinkState = false;
 
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
-    Wire.begin();
+    i2cdev.begin();
 
     // initialize serial communication
     // (38400 chosen because it works as well at 8MHz as it does at 16MHz, but
     // it's really up to you depending on your project)
-    Serial.begin(38400);
+    Serial.begin(19200);
 
     // initialize device
     Serial.println("Initializing I2C devices...");
@@ -72,7 +72,8 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
     
     // set sample time
-    rtc.setDateTime24(2011, 11, 12, 13, 45, 0);
+    DateTime now (__DATE__, __TIME__);
+    rtc.setDateTime(now);
 }
 
 void loop() {

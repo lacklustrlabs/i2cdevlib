@@ -43,12 +43,37 @@ THE SOFTWARE.
 #define HTU21D_WRITE_USER_REGISTER 0xE6
 #define HTU21D_READ_USER_REGISTER  0xE7
 
+template <typename WIRE>
 class HTU21D {
     public:
-        HTU21D();
 
-        void initialize();
-        bool testConnection();
+        HTU21D(I2CdevT<WIRE, uint8_t>& i2cdev):_i2cdev(i2cdev),
+                                               devAddr(HTU21D_DEFAULT_ADDRESS) {
+
+        }
+
+        HTU21D() = delete;
+        HTU21D(const HTU21D<WIRE>& other) = delete; // non construction-copyable
+        HTU21D& operator=(const HTU21D<WIRE>&) = delete; // non copyable
+
+        /** Power on and prepare for general usage.
+         * This operation calls reset() on the HTU21D device and it takes at least 15milliseconds.
+         */
+        void initialize() {
+          reset();
+        }
+
+        /** Verify the I2C connection.
+         * Make sure the device is connected and responds as expected.
+         * This operation calls reset() on the HTU21D device and it takes at least 15milliseconds.
+         * @return True if connection is valid, false otherwise
+         */
+        bool testConnection() {
+            reset();
+            buffer[0] = 0;
+            _i2cdev.readByte(devAddr, HTU21D_READ_USER_REGISTER, buffer);
+            return buffer[0] == 0x2;
+        }
 
         float getTemperature();
         float getHumidity();
@@ -56,8 +81,48 @@ class HTU21D {
         void reset();
 
     private:
+        I2CdevT<WIRE, uint8_t>& _i2cdev;
         uint8_t devAddr;
         uint8_t buffer[2];
 };
+
+/** Reads and returns the temperature, ignores the CRC field.
+ * @return The measured temperature, or NaN if the operation failed.
+ */
+template <typename WIRE>
+float HTU21D<WIRE>::getTemperature() {
+    // Ignore the CRC byte
+    uint16_t t = 0;
+    if (1!=_i2cdev.readWord(devAddr, HTU21D_RA_TEMPERATURE, &t)){
+        return NAN;
+    }
+    // clear the status bits (bit0 & bit1) and calculate the temperature
+    // as per the formula in the datasheet
+    return ((float)(t&0xFFFC))*175.72/65536.0-46.85;
+}
+
+/** Reads and returns the humidity, ignores the CRC field
+ * @return The measured humidity, or NaN if the operation failed.
+ */
+template <typename WIRE>
+float HTU21D<WIRE>::getHumidity() {
+    // Ignore the CRC byte
+    uint16_t t = 0;
+    if (1!=_i2cdev.readWord(devAddr, HTU21D_RA_HUMIDITY, &t)){
+        return NAN;
+    }
+    // clear the status bits (bit0 & bit1) and calculate the humidity
+    // as per the formula in the datasheet
+    return ((float)(t&0xFFFC))*125.0/65536.0-6.0;
+}
+
+/** Does a soft reset of the HTU21D
+ * This operation takes at least 15milliseconds.
+ */
+template <typename WIRE>
+void HTU21D<WIRE>::reset() {
+    _i2cdev.writeByte(devAddr, HTU21D_RESET, 0);
+    delay(15);
+}
 
 #endif /* _HTU21D_H_ */

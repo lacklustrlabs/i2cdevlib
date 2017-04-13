@@ -1,14 +1,16 @@
-// I2C device class (I2Cdev) demonstration Arduino sketch for HTU21D class
-// Example of reading temperature and humidity from the HTU21D sensor
-// 2016-03-24 by Eadf (https://github.com/eadf)
+// I2Cdev library collection - DS1307 I2C device class
+// Based on Maxim DS1307 datasheet, 2008
+// 11/13/2011 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
+// I2C Device Library hosted at http://www.i2cdevlib.com
 //
 // Changelog:
-//     2016-03-24 - initial release
+//     2017-11-13 - initial release
+//
 
 /* ============================================
 I2Cdev device library code is placed under the MIT license
-Copyright (c) 2016 Eadf, Jeff Rowberg
+Copyright (c) 2011 Jeff Rowberg
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -30,24 +32,4 @@ THE SOFTWARE.
 ===============================================
 */
 
-#include "HTU21D.h"
-
-#define SERIAL_OUTPUT Serial
-
-I2CdevT<TwoWire, uint8_t> i2cdev(Wire);
-HTU21D<TwoWire> htu21d(i2cdev);
-
-void setup() {
-  SERIAL_OUTPUT.begin(115200);
-  i2cdev.begin();  // join I2C bus
-
-  htu21d.initialize();
-  SERIAL_OUTPUT.println(F("Testing device connections..."));
-  SERIAL_OUTPUT.println(htu21d.testConnection() ? F("HTU21D connection successful") : F("HTU21D connection failed"));
-}
-
-void loop() {
-  SERIAL_OUTPUT.print(F("Temperature: ")); SERIAL_OUTPUT.print(htu21d.getTemperature());
-  SERIAL_OUTPUT.print(F("\t\tHumidity: ")); SERIAL_OUTPUT.println(htu21d.getHumidity());
-  delay(400);
-}
+#include "AT24C32.h"

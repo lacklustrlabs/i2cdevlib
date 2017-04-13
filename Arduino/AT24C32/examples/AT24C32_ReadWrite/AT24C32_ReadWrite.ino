@@ -1,4 +1,4 @@
-// I2C device class (I2Cdev) demonstration Arduino sketch for DS1307 class
+// I2C device class (I2Cdev) demonstration Arduino sketch for AT24C32 class
 // 11/12/2011 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
 // I2C Device Library hosted at http://www.i2cdevlib.com
@@ -34,26 +34,60 @@ THE SOFTWARE.
 // is used in I2Cdev.h
 #include "Wire.h"
 
-// I2Cdev and DS1307 must be installed as libraries, or else the .cpp/.h files
+// I2Cdev and AT24C32 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
 #include "I2Cdev.h"
-#include "DS1307.h"
+#include "AT24C32.h"
 
-// class default I2C address is 0x68
-// specific I2C addresses may be passed as a parameter here
-// but this device only supports one I2C address (0x68)
-I2Cdev i2cdev(Wire);
-DS1307<TwoWire> rtc(i2cdev);
+// default I2C address is 0x50
+I2CdevT<TwoWire,uint16_t> i2cdev(Wire);
+AT24C32<TwoWire> at24c32(i2cdev);
 
-uint16_t year;
-uint8_t month, day, dow, hours, minutes, seconds;
 
-#define LED_PIN 13
-bool blinkState = false;
+
+void test_bytes(uint16_t regAddr) {
+    uint8_t data[] = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','x','y','z','A','B','C','D','E'};
+    Serial.print("\nTesting AT24C32::readBytes and AT24C32::writeBytes @0x");
+    Serial.println(regAddr, HEX);
+    
+    Serial.print("Writing: ");
+    for (int i=0; i<sizeof(data); i++) {
+      Serial.print((char)data[i]);
+    }
+    
+    at24c32.writeBytes(regAddr, sizeof(data), data);
+
+    for (int i=0; i<sizeof(data); i++) {
+      data[i] = 0;
+    }
+   
+    at24c32.readBytes(regAddr, sizeof(data), data);
+    Serial.print("\nVerify:  ");
+    for (int i=0; i<sizeof(data); i++) {
+      Serial.print((char)data[i]);
+    }
+    Serial.println();  
+}
+
+void test_byte() {
+    uint16_t regAddr = 0b111111111001;
+    Serial.print("\nTesting AT24C32::readByte and AT24C32::writeByte @0x");
+    Serial.println(regAddr, HEX);
+    
+    char data = 'X';
+    Serial.print("Writing: ");
+    Serial.println(data);
+
+    at24c32.writeByte(regAddr, data);
+
+    Serial.print("Verify:  ");
+    data = at24c32.readByte(regAddr);
+    Serial.println(data);
+}
 
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
-    Wire.begin();
+    i2cdev.begin();
 
     // initialize serial communication
     // (38400 chosen because it works as well at 8MHz as it does at 16MHz, but
@@ -62,41 +96,19 @@ void setup() {
 
     // initialize device
     Serial.println("Initializing I2C devices...");
-    rtc.initialize();
+    at24c32.initialize();
 
     // verify connection
     Serial.println("Testing device connections...");
-    Serial.println(rtc.testConnection() ? "DS1307 connection successful" : "DS1307 connection failed");
+    Serial.println(at24c32.testConnection() ? "AT24C32 connection successful" : "AT24C32 connection failed");
 
-    // configure LED pin for output
-    pinMode(LED_PIN, OUTPUT);
-    
-    // set sample time
-    rtc.setDateTime24(2011, 11, 12, 13, 45, 0);
+    test_byte();
+    for (uint16_t i=0;i<2;i++){
+      // When writing 30 bytes at once the low 4 bits of the address must be cleared.
+      test_bytes(i<<4);   
+    }
 }
 
 void loop() {
-    // read all clock info from device
-    rtc.getDateTime24(&year, &month, &day, &hours, &minutes, &seconds);
-
-    // display YYYY-MM-DD hh:mm:ss time
-    Serial.print("rtc:\t");
-    Serial.print(year); Serial.print("-");
-    if (month < 10) Serial.print("0");
-    Serial.print(month); Serial.print("-");
-    if (day < 10) Serial.print("0");
-    Serial.print(day); Serial.print(" ");
-    if (hours < 10) Serial.print("0");
-    Serial.print(hours); Serial.print(":");
-    if (minutes < 10) Serial.print("0");
-    Serial.print(minutes); Serial.print(":");
-    if (seconds < 10) Serial.print("0");
-    Serial.println(seconds);
-
-    // blink LED to indicate activity
-    blinkState = !blinkState;
-    digitalWrite(LED_PIN, blinkState);
-
-    // wait one second so the next reading will be different
     delay(1000);
 }
