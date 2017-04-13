@@ -5,7 +5,7 @@ This implementation has these advantages:
 * can use more than one i2c bus at the same time (eg. stm32duino)
 * Added am i2cdev driver for AT24C32 (12bit register address)
 
-Example:
+Examples:
 ```c++
 #include "I2Cdev.h"
 #include "AT24C32.h"
@@ -24,7 +24,30 @@ DS1307<TwoWire> rtc(i2cdev8);       // DS1307 uses the normal 8 bit register add
 setup() {
 ....
 ```
+```c++
+#define SDA_PORT PORTD
+#define SDA_PIN 3
+#define SCL_PORT PORTD
+#define SCL_PIN 2
 
+// using the software i2c implementation from github.com/felias-fogg/SoftI2CMaster
+#include "I2Cdev_SoftWire_impl.h"
+#include "AT24C32.h"
+#include "DS1307.h"
+
+SoftWire softWire = SoftWire();
+
+// An I2Cdev template specialization with 16 bit register addresses
+I2CdevT<SoftWire,uint16_t> i2cdev16(softWire);
+// A I2Cdev template specialization with  8 bit register addresses
+I2CdevT<SoftWire,uint8_t> i2cdev8(softWire);    
+
+AT24C32<SoftWire> at24c32(i2cdev16);
+DS1307<SoftWire> rtc(i2cdev8);
+
+setup() {
+....
+```
 
 ## Note:
 Only a handful of the drivers have (as of yet) been converter to the template API.
